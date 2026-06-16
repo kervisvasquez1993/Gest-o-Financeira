@@ -11,10 +11,7 @@ import { TransformInterceptor } from './shared/interceptors/transform.intercepto
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: typeOrmConfig,
-    }),
+    TypeOrmModule.forRoot(typeOrmConfig()),
     UsersModule,
     AuthModule,
   ],

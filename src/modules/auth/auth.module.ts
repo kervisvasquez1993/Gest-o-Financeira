@@ -1,8 +1,7 @@
-// src/modules/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
+import { envs } from '../../config/envs';
 import { UsersModule } from '../users/users.module';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { RegisterUseCase } from './application/use-cases/register.use-case';
@@ -15,17 +14,11 @@ import { AuthController } from './presentation/auth.controller';
 @Module({
   imports: [
     UsersModule,
-    JwtModule.registerAsync({
+    JwtModule.register({
       global: true,
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService): JwtModuleOptions => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: config.get<string>('JWT_EXPIRES_IN', '1d') as StringValue,
-        },
-      }),
-    }),
+      secret: envs.jwt.secret,
+      signOptions: { expiresIn: envs.jwt.expiresIn as StringValue },
+    } as JwtModuleOptions),
   ],
   controllers: [AuthController],
   providers: [
