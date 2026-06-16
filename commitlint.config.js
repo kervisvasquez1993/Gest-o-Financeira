@@ -23,10 +23,10 @@ module.exports = {
       ],
     ],
 
-    'type-case': [2, 'always', 'lower-case'],   // tipo en minúscula
-    'type-empty': [2, 'never'],                  // el tipo es obligatorio
-    'scope-case': [2, 'always', 'lower-case'],   // scope en minúscula
-    'subject-empty': [2, 'never'],               // descripción obligatoria
-    'subject-full-stop': [2, 'never', '.'],      // sin punto final
+    'type-case': [2, 'always', 'lower-case'],   
+    'type-empty': [2, 'never'],                  
+    'scope-case': [2, 'always', 'lower-case'],  
+    'subject-empty': [2, 'never'],               
+    'subject-full-stop': [2, 'never', '.'],      
   },
 };
