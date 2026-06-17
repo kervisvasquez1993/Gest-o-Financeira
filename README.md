@@ -1,98 +1,418 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Gestão Financeira — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST para que os colaboradores de uma empresa registrem e acompanhem suas movimentações financeiras por categoria (despesas operacionais, receitas de clientes, reembolsos, etc.). Cada usuário enxerga **apenas seus próprios dados**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Construída em **NestJS + TypeScript (strict mode)**, com **PostgreSQL** via **TypeORM** e autenticação **JWT**.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Stack
 
-## Project setup
+| Camada | Tecnologia |
+|---|---|
+| Framework | NestJS 11 |
+| Linguagem | TypeScript (strict) |
+| Banco de dados | PostgreSQL |
+| ORM | TypeORM (migrations) |
+| Autenticação | JWT (`@nestjs/jwt`) + Guard próprio |
+| Validação | class-validator + class-transformer |
+| Hash de senha | bcrypt |
+| Config | Joi (validação de variáveis de ambiente) |
 
-```bash
-$ npm install
+---
+
+## Decisões técnicas e arquiteturais
+
+### Arquitetura por módulos + Clean Architecture / DDD
+
+O projeto é organizado por **bounded context** (um módulo por contexto: `auth`, `users`, `categories`, `transactions`, `dashboard`). Cada módulo segue separação em camadas inspirada em **DDD** e **Ports & Adapters (Hexagonal)**:
+
+```
+modules/<contexto>/
+├── domain/            # regra de negócio pura
+│   ├── entities/      # entidades (TypeORM)
+│   ├── enums/         # enums de domínio
+│   ├── ports/         # contratos (abstract classes) = portas
+│   └── errors/        # erros de domínio
+├── application/       # orquestração
+│   ├── dtos/          # entrada validada (class-validator)
+│   └── use-cases/     # um caso de uso por operação
+├── infrastructure/    # implementações concretas das portas
+│   └── repositories/  # repositórios TypeORM
+└── presentation/      # controllers HTTP
 ```
 
-## Compile and run the project
+**Por que assim?**
 
-```bash
-# development
-$ npm run start
+- **Casos de uso isolados**: cada operação (criar, listar, atualizar, etc.) é uma classe com uma única responsabilidade. Fácil de testar e de raciocinar.
+- **Ports como `abstract class`**: as interfaces de TypeScript desaparecem em runtime e não servem como token de injeção de dependência. Usar `abstract class` permite o binding `{ provide: Repository, useClass: TypeOrmRepository }` e troca de implementação sem tocar no domínio.
+- **Domínio independente de infraestrutura**: os use-cases dependem da porta (`CategoryRepository`), não da implementação concreta (`TypeOrmCategoryRepository`).
 
-# watch mode
-$ npm run start:dev
+### Isolamento por usuário (multi-tenant por linha)
 
-# production mode
-$ npm run start:prod
+Todo dado pertence a um usuário. O **escopo por `userId` vive no repositório**, não no controller — assim nenhum caso de uso consegue, por engano, vazar dados de outro usuário. Todas as queries filtram por `user_id`, e buscas por ID usam `findByIdAndUser`. Se um recurso não pertence ao usuário autenticado, a resposta é **404** (não revela existência).
+
+### Autenticação JWT sem Passport
+
+Optou-se por `@nestjs/jwt` com um **Guard próprio** (`JwtAuthGuard`) em vez de Passport, para manter o fluxo explícito e com menos dependências. O guard:
+
+1. Extrai o token do header `Authorization: Bearer <token>`.
+2. Valida com `JwtService.verifyAsync`.
+3. Injeta `{ id, email }` em `request.user`, acessível via o decorator `@CurrentUser()`.
+
+### Respostas padronizadas e tratamento global de exceções
+
+- **`TransformInterceptor`** (global): envelopa toda resposta de sucesso em `{ success: true, data: ... }`.
+- **`AllExceptionsFilter`** (global): captura qualquer erro e devolve um formato consistente. Mapeia **erros de domínio** para status HTTP corretos:
+
+| Erro de domínio | HTTP |
+|---|---|
+| `NotFoundError` | 404 |
+| `ConflictError` | 409 |
+| `UnauthorizedError` | 401 |
+| `ForbiddenError` | 403 |
+| `ValidationError` | 400 |
+
+Os controllers e use-cases **nunca** lançam `HttpException` diretamente — lançam erros de domínio semânticos, e o filtro traduz. Isso mantém o domínio livre de detalhes de HTTP.
+
+### Validação de ambiente com Joi
+
+As variáveis de ambiente são validadas no boot (`src/config/envs.ts`). Se faltar uma variável obrigatória ou estiver com tipo errado, a aplicação **falha ao iniciar** com mensagem clara, em vez de quebrar em runtime.
+
+### Tipo de transação como enum
+
+`type` é um enum (`entrada` | `saida`, sem acento para evitar problemas de encoding). O valor (`amount`) é sempre **positivo**; o sinal é dado pelo `type`. Assim o saldo é simplesmente `SUM(entradas) − SUM(saídas)`.
+
+### Dashboard calculado no banco
+
+Os números do dashboard (saldo, totais, top categorias) são calculados via **SQL** (`SUM` com `CASE`, `GROUP BY`, `ORDER BY`, `LIMIT`), atendendo ao requisito de que os dados venham prontos da API e não sejam calculados no frontend.
+
+### Integridade referencial
+
+- `categories.user_id` → `users.id` com **`ON DELETE CASCADE`** (apagar o usuário apaga suas categorias).
+- `transactions.user_id` → `users.id` com **`ON DELETE CASCADE`**.
+- `transactions.category_id` → `categories.id` com **`ON DELETE RESTRICT`** (não permite apagar uma categoria que tenha transações, preservando o histórico financeiro).
+- Índice único `(user_id, name)` em `categories`: não há nomes de categoria repetidos por usuário.
+
+---
+
+## Estrutura do projeto
+
+```
+src/
+├── config/
+│   └── envs.ts                     # validação de env com Joi
+├── shared/
+│   ├── database/                   # config TypeORM, data-source, transformers
+│   ├── decorators/                 # @CurrentUser
+│   ├── errors/                     # erros de domínio base
+│   ├── filters/                    # AllExceptionsFilter
+│   ├── guards/                     # JwtAuthGuard
+│   ├── interceptors/               # TransformInterceptor
+│   └── responses/                  # contratos de resposta (paginação, etc.)
+├── modules/
+│   ├── auth/                       # registro, login, JWT
+│   ├── users/                      # entidade User, /me
+│   ├── categories/                 # CRUD de categorias
+│   ├── transactions/              # CRUD + paginação + filtros
+│   └── dashboard/                  # resumo financeiro
+├── migrations/                     # migrations TypeORM
+├── app.module.ts
+└── main.ts
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## Modelo de dados
 
-# e2e tests
-$ npm run test:e2e
+### users
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| name | varchar(150) | |
+| email | varchar(180) | único |
+| password_hash | varchar | hash bcrypt |
+| created_at / updated_at | timestamptz | |
 
-# test coverage
-$ npm run test:cov
+### categories
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| name | varchar(120) | único por usuário |
+| description | varchar(255) | opcional |
+| user_id | uuid | FK → users (CASCADE) |
+| created_at / updated_at | timestamptz | |
+
+### transactions
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| description | varchar(255) | |
+| amount | numeric(12,2) | sempre positivo |
+| type | enum | `entrada` \| `saida` |
+| date | date | |
+| category_id | uuid | FK → categories (RESTRICT) |
+| user_id | uuid | FK → users (CASCADE) |
+| created_at / updated_at | timestamptz | |
+
+---
+
+## API
+
+Prefixo global: **`/api`**. Todas as rotas (exceto `register` e `login`) exigem o header:
+
+```
+Authorization: Bearer <accessToken>
 ```
 
-## Deployment
+Toda resposta de sucesso vem envelopada:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```json
+{ "success": true, "data": { ... } }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Autenticação
 
-## Resources
+#### `POST /api/auth/register`
+Registra um novo usuário.
 
-Check out a few resources that may come in handy when working with NestJS:
+Request:
+```json
+{
+  "name": "Kervis",
+  "email": "kervis@test.com",
+  "password": "123456"
+}
+```
+Response `201`:
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com" }
+}
+```
+Erros: `409` e-mail já cadastrado · `400` payload inválido.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+#### `POST /api/auth/login`
+Autentica e retorna o JWT.
 
-## Support
+Request:
+```json
+{
+  "email": "kervis@test.com",
+  "password": "123456"
+}
+```
+Response `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGci...",
+    "user": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com" }
+  }
+}
+```
+Erros: `401` credenciais inválidas.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+### Usuário
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+#### `GET /api/users/me`
+Retorna o perfil do usuário autenticado.
 
-## License
+Response `200`:
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com", "createdAt": "..." }
+}
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+### Categorias
+
+Pertencem ao usuário autenticado. Nome único por usuário.
+
+#### `POST /api/categories`
+Request:
+```json
+{
+  "name": "Fornecedor",
+  "description": "Pagamentos a fornecedores"
+}
+```
+`description` é opcional. Erros: `409` nome já existe · `400` payload inválido.
+
+#### `GET /api/categories`
+Lista todas as categorias do usuário.
+
+#### `GET /api/categories/:id`
+Retorna uma categoria. `404` se não existir ou não pertencer ao usuário.
+
+#### `PATCH /api/categories/:id`
+Atualização parcial.
+```json
+{
+  "name": "Fornecedores",
+  "description": "Atualizado"
+}
+```
+Erros: `409` nome já existe · `404` não encontrada.
+
+#### `DELETE /api/categories/:id`
+Response `200`:
+```json
+{
+  "success": true,
+  "data": { "message": "Categoría eliminada exitosamente." }
+}
+```
+Erro: `409` se a categoria tiver transações associadas (RESTRICT).
+
+---
+
+### Transações
+
+Pertencem ao usuário autenticado. A categoria informada deve pertencer ao usuário.
+
+#### `POST /api/transactions`
+Request:
+```json
+{
+  "description": "Pagamento a fornecedor",
+  "amount": 150.50,
+  "type": "saida",
+  "date": "2026-06-16",
+  "categoryId": "uuid-da-categoria"
+}
+```
+Regras: `type` ∈ `entrada` | `saida` · `amount` positivo, máx. 2 casas decimais · `date` no formato `YYYY-MM-DD`. Erros: `404` categoria inexistente/não pertence ao usuário · `400` payload inválido.
+
+#### `GET /api/transactions`
+Lista com **paginação** e **filtros**, todos via query params (combináveis).
+
+| Param | Tipo | Descrição |
+|---|---|---|
+| `type` | `entrada` \| `saida` | filtra por tipo |
+| `categoryId` | uuid | filtra por categoria |
+| `startDate` | `YYYY-MM-DD` | data inicial (inclusive) |
+| `endDate` | `YYYY-MM-DD` | data final (inclusive) |
+| `page` | int ≥ 1 | página (default 1) |
+| `limit` | int 1–100 | itens por página (default 10) |
+
+Exemplo:
+```
+GET /api/transactions?type=saida&categoryId=uuid&startDate=2026-06-01&endDate=2026-06-30&page=1&limit=10
+```
+Response `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "data": [ { "id": "...", "description": "...", "amount": 150.5, "type": "saida", "date": "2026-06-16", "category": { ... } } ],
+    "meta": { "total": 1, "page": 1, "limit": 10, "totalPages": 1 }
+  }
+}
+```
+
+#### `GET /api/transactions/:id`
+Retorna uma transação (com a categoria aninhada). `404` se não pertencer ao usuário.
+
+#### `PATCH /api/transactions/:id`
+Atualização parcial (mesmos campos do create, todos opcionais).
+```json
+{
+  "amount": 200.00,
+  "description": "Pagamento atualizado"
+}
+```
+
+#### `DELETE /api/transactions/:id`
+Response `200`:
+```json
+{
+  "success": true,
+  "data": { "message": "Transacción eliminada exitosamente." }
+}
+```
+
+---
+
+### Dashboard
+
+Resumo financeiro do usuário autenticado, calculado no banco.
+
+#### `GET /api/dashboard`
+Query params opcionais:
+
+| Param | Tipo | Descrição |
+|---|---|---|
+| `startDate` | `YYYY-MM-DD` | início do período (inclusive) |
+| `endDate` | `YYYY-MM-DD` | fim do período (inclusive) |
+
+Sem params, considera todo o histórico. O período aplica-se a todos os cálculos.
+
+Exemplo:
+```
+GET /api/dashboard?startDate=2026-06-01&endDate=2026-06-30
+```
+Response `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "saldoAtual": 2259.6,
+    "totalEntradas": 2500,
+    "totalSaidas": 240.4,
+    "topCategoriasSaidas": [
+      { "categoryId": "uuid", "categoryName": "categoria1", "total": 150.5 },
+      { "categoryId": "uuid", "categoryName": "categoria3", "total": 89.9 }
+    ],
+    "periodo": { "startDate": "2026-06-01", "endDate": "2026-06-30" }
+  }
+}
+```
+
+Campos:
+- `saldoAtual`: `totalEntradas − totalSaidas`.
+- `totalEntradas` / `totalSaidas`: somas no período.
+- `topCategoriasSaidas`: as 3 categorias com maior volume de **saídas**.
+
+---
+
+## Variáveis de ambiente
+
+Ver `.env.example`. Validadas no boot via Joi.
+
+| Variável | Descrição |
+|---|---|
+| `PORT` | porta da aplicação |
+| `DB_HOST` / `DB_PORT` | host e porta do PostgreSQL |
+| `DB_USERNAME` / `DB_PASSWORD` | credenciais |
+| `DB_NAME` | nome do banco |
+| `JWT_SECRET` | segredo para assinar os tokens |
+| `JWT_EXPIRES_IN` | expiração do token (ex. `1d`) |
+
+---
+
+## Convenções de commit
+
+O projeto usa **Husky** + **commitlint** (Conventional Commits), com limite de 100 caracteres no header e tipos restritos (`feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `build`, `ci`, `style`, `revert`).
+
+Formato: `tipo(escopo): descrição`
+
+```
+feat(transactions): add crud with pagination and filters
+fix(categories): scope queries to authenticated user
+```
+
+---
+
+## Próximos passos
+
+- [ ] Containerização com Docker / Docker Compose (incl. instruções de execução local).
+- [ ] Testes automatizados.
+- [ ] Frontend em React + TypeScript.
