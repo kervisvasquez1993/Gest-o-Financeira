@@ -8,6 +8,7 @@ import { typeOrmConfig } from './shared/database/typeorm.config';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
     TypeOrmModule.forRoot(typeOrmConfig()),
     UsersModule,
     CategoriesModule,
+    TransactionsModule,
     AuthModule,
   ],
   providers: [
