@@ -9,6 +9,7 @@ import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
     UsersModule,
     CategoriesModule,
     TransactionsModule,
+    DashboardModule,
     AuthModule,
   ],
   providers: [
