@@ -58,7 +58,6 @@ export class CategoryController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.deleteCategory.execute(id, user.id);
   }

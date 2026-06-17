@@ -14,6 +14,7 @@ export interface UpdateCategoryData {
 export abstract class CategoryRepository {
   abstract findAllByUser(userId: string): Promise<Category[]>;
   abstract findByIdAndUser(id: string, userId: string): Promise<Category | null>;
+    abstract findByNameAndUser(name: string, userId: string): Promise<Category | null>;
   abstract create(data: CreateCategoryData): Promise<Category>;
   abstract update(category: Category, data: UpdateCategoryData): Promise<Category>;
   abstract delete(category: Category): Promise<void>;

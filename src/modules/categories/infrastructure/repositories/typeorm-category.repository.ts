@@ -1,3 +1,4 @@
+// src/modules/categories/infrastructure/repositories/typeorm-category.repository.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,6 +27,10 @@ export class TypeOrmCategoryRepository extends CategoryRepository {
 
   findByIdAndUser(id: string, userId: string): Promise<Category | null> {
     return this.repository.findOne({ where: { id, userId } });
+  }
+
+  findByNameAndUser(name: string, userId: string): Promise<Category | null> {
+    return this.repository.findOne({ where: { name, userId } });
   }
 
   create(data: CreateCategoryData): Promise<Category> {
