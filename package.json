@@ -1,5 +1,5 @@
 {
-  "name": "gestão-financeira",
+  "name": "gestao-financeira",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -18,7 +18,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typeorm": "typeorm-ts-node-commonjs -d ./src/shared/database/data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:create": "typeorm-ts-node-commonjs migration:create"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.27",
@@ -33,7 +38,8 @@
     "joi": "^18.2.1",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
@@ -61,7 +67,6 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typeorm": "^1.0.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
