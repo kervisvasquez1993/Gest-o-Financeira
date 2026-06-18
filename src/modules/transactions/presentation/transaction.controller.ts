@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import type { AuthUser } from '../../../shared/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
@@ -22,8 +28,16 @@ import { DeleteTransactionUseCase } from '../application/use-cases/delete-transa
 import { GetTransactionByIdUseCase } from '../application/use-cases/get-transaction-by-id.use-case';
 import { ListTransactionsUseCase } from '../application/use-cases/list-transactions.use-case';
 import { UpdateTransactionUseCase } from '../application/use-cases/update-transaction.use-case';
+import { TransactionResponseDto } from './transaction-response.dto';
+import { PaginatedTransactionsResponseDto } from './paginated-transactions-response.dto';
+import { MessageResponseDto } from 'src/shared/responses/message-response.dto';
 
 @ApiTags('Transactions')
+@ApiCreatedResponse({ type: TransactionResponseDto })
+@ApiOkResponse({ type: PaginatedTransactionsResponseDto })
+@ApiOkResponse({ type: TransactionResponseDto })
+@ApiOkResponse({ type: TransactionResponseDto })
+@ApiOkResponse({ type: MessageResponseDto })
 @ApiBearerAuth()
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
@@ -44,13 +58,19 @@ export class TransactionController {
 
   @ApiOperation({ summary: 'Listar transações com paginação e filtros' })
   @Get()
-  findAll(@Query() filters: FilterTransactionsDto, @CurrentUser() user: AuthUser) {
+  findAll(
+    @Query() filters: FilterTransactionsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.listTransactions.execute(filters, user.id);
   }
 
   @ApiOperation({ summary: 'Buscar uma transação por ID' })
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.getTransactionById.execute(id, user.id);
   }
 
@@ -66,7 +86,10 @@ export class TransactionController {
 
   @ApiOperation({ summary: 'Excluir uma transação' })
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.deleteTransaction.execute(id, user.id);
   }
 }
