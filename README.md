@@ -6,6 +6,15 @@ Construída em **NestJS + TypeScript (strict mode)**, com **PostgreSQL** via **T
 
 ---
 
+## Links
+
+- **API em produção (Swagger):** https://dev.backend-api-agua.shop/api/docs
+- **Repositório wrapper (execução local de backend + frontend):** https://github.com/kervisvasquez1993/wrapper-gestao-financiera
+
+> Este repositório contém **apenas o backend** e está pensado para **deploy em produção** (publicado em um VPS na Hostinger via Dokploy). Para rodar o projeto completo localmente (backend + frontend com um único comando), utilize o **repositório wrapper** acima, que orquestra ambos os serviços via Docker Compose e contém as instruções de execução local.
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |
@@ -16,6 +25,7 @@ Construída em **NestJS + TypeScript (strict mode)**, com **PostgreSQL** via **T
 | ORM | TypeORM (migrations) |
 | Autenticação | JWT (`@nestjs/jwt`) + Guard próprio |
 | Validação | class-validator + class-transformer |
+| Documentação | Swagger (OpenAPI) |
 | Hash de senha | bcrypt |
 | Config | Joi (validação de variáveis de ambiente) |
 
@@ -23,9 +33,19 @@ Construída em **NestJS + TypeScript (strict mode)**, com **PostgreSQL** via **T
 
 ## Decisões técnicas e arquiteturais
 
-### Arquitetura por módulos + Clean Architecture / DDD
+### Sobre a arquitetura escolhida (e o enunciado)
 
-O projeto é organizado por **bounded context** (um módulo por contexto: `auth`, `users`, `categories`, `transactions`, `dashboard`). Cada módulo segue separação em camadas inspirada em **DDD** e **Ports & Adapters (Hexagonal)**:
+O enunciado indica que **não é necessário DDD** e pede para evitar over-engineering. A organização adotada aqui — separação em camadas (domínio, aplicação, infraestrutura, apresentação) com ports e use-cases — **não é uma exigência do problema, mas uma decisão consciente** pelos seguintes motivos:
+
+- **Testabilidade**: com os casos de uso isolados e as dependências atrás de ports (`abstract class`), os testes ficam simples e limpos — basta mockar a porta, sem tocar no banco nem no framework. Isso atende diretamente ao requisito de testes significativos.
+- **Clareza e separação de responsabilidades**: cada operação é uma classe com responsabilidade única, o que torna o código fácil de ler e manter — exatamente o critério de avaliação de peso **Alto** (Arquitetura & Módulos).
+- **Produtividade**: é a forma de trabalho com a qual tenho mais fluidez e confiança; aplicá-la não adicionou tempo nem complexidade ao desenvolvimento.
+
+A separação foi mantida **proporcional ao problema** — sem microsserviços, sem CQRS, sem event sourcing, sem filas. É uma Clean Architecture leve, voltada a manutenção e testes, não uma demonstração de padrões.
+
+### Organização por módulos
+
+O projeto é organizado por **bounded context** (um módulo por contexto: `auth`, `users`, `categories`, `transactions`, `dashboard`). Cada módulo segue a separação:
 
 ```
 modules/<contexto>/
@@ -42,9 +62,6 @@ modules/<contexto>/
 └── presentation/      # controllers HTTP
 ```
 
-**Por que assim?**
-
-- **Casos de uso isolados**: cada operação (criar, listar, atualizar, etc.) é uma classe com uma única responsabilidade. Fácil de testar e de raciocinar.
 - **Ports como `abstract class`**: as interfaces de TypeScript desaparecem em runtime e não servem como token de injeção de dependência. Usar `abstract class` permite o binding `{ provide: Repository, useClass: TypeOrmRepository }` e troca de implementação sem tocar no domínio.
 - **Domínio independente de infraestrutura**: os use-cases dependem da porta (`CategoryRepository`), não da implementação concreta (`TypeOrmCategoryRepository`).
 
@@ -159,7 +176,9 @@ src/
 
 ## API
 
-Prefixo global: **`/api`**. Todas as rotas (exceto `register` e `login`) exigem o header:
+Prefixo global: **`/api`**. Documentação interativa completa via **Swagger** em `/api/docs` (em produção: https://dev.backend-api-agua.shop/api/docs).
+
+Todas as rotas (exceto `register` e `login`) exigem o header:
 
 ```
 Authorization: Bearer <accessToken>
@@ -174,34 +193,20 @@ Toda resposta de sucesso vem envelopada:
 ### Autenticação
 
 #### `POST /api/auth/register`
-Registra um novo usuário.
-
 Request:
 ```json
-{
-  "name": "Kervis",
-  "email": "kervis@test.com",
-  "password": "123456"
-}
+{ "name": "Kervis", "email": "kervis@test.com", "password": "123456" }
 ```
 Response `201`:
 ```json
-{
-  "success": true,
-  "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com" }
-}
+{ "success": true, "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com" } }
 ```
 Erros: `409` e-mail já cadastrado · `400` payload inválido.
 
 #### `POST /api/auth/login`
-Autentica e retorna o JWT.
-
 Request:
 ```json
-{
-  "email": "kervis@test.com",
-  "password": "123456"
-}
+{ "email": "kervis@test.com", "password": "123456" }
 ```
 Response `200`:
 ```json
@@ -224,10 +229,7 @@ Retorna o perfil do usuário autenticado.
 
 Response `200`:
 ```json
-{
-  "success": true,
-  "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com", "createdAt": "..." }
-}
+{ "success": true, "data": { "id": "uuid", "name": "Kervis", "email": "kervis@test.com", "createdAt": "..." } }
 ```
 
 ---
@@ -239,15 +241,15 @@ Pertencem ao usuário autenticado. Nome único por usuário.
 #### `POST /api/categories`
 Request:
 ```json
-{
-  "name": "Fornecedor",
-  "description": "Pagamentos a fornecedores"
-}
+{ "name": "Fornecedor", "description": "Pagamentos a fornecedores" }
 ```
 `description` é opcional. Erros: `409` nome já existe · `400` payload inválido.
 
 #### `GET /api/categories`
 Lista todas as categorias do usuário.
+
+#### `GET /api/categories/summary`
+Lista as categorias do usuário com estatísticas: `transactionsCount`, `totalEntradas`, `totalSaidas`.
 
 #### `GET /api/categories/:id`
 Retorna uma categoria. `404` se não existir ou não pertencer ao usuário.
@@ -255,20 +257,14 @@ Retorna uma categoria. `404` se não existir ou não pertencer ao usuário.
 #### `PATCH /api/categories/:id`
 Atualização parcial.
 ```json
-{
-  "name": "Fornecedores",
-  "description": "Atualizado"
-}
+{ "name": "Fornecedores", "description": "Atualizado" }
 ```
 Erros: `409` nome já existe · `404` não encontrada.
 
 #### `DELETE /api/categories/:id`
 Response `200`:
 ```json
-{
-  "success": true,
-  "data": { "message": "Categoría eliminada exitosamente." }
-}
+{ "success": true, "data": { "message": "Categoría eliminada exitosamente." } }
 ```
 Erro: `409` se a categoria tiver transações associadas (RESTRICT).
 
@@ -300,12 +296,13 @@ Lista com **paginação** e **filtros**, todos via query params (combináveis).
 | `categoryId` | uuid | filtra por categoria |
 | `startDate` | `YYYY-MM-DD` | data inicial (inclusive) |
 | `endDate` | `YYYY-MM-DD` | data final (inclusive) |
+| `search` | string | busca parcial na descrição (case-insensitive) |
 | `page` | int ≥ 1 | página (default 1) |
 | `limit` | int 1–100 | itens por página (default 10) |
 
 Exemplo:
 ```
-GET /api/transactions?type=saida&categoryId=uuid&startDate=2026-06-01&endDate=2026-06-30&page=1&limit=10
+GET /api/transactions?type=saida&categoryId=uuid&startDate=2026-06-01&endDate=2026-06-30&search=pagamento&page=1&limit=10
 ```
 Response `200`:
 ```json
@@ -324,19 +321,13 @@ Retorna uma transação (com a categoria aninhada). `404` se não pertencer ao u
 #### `PATCH /api/transactions/:id`
 Atualização parcial (mesmos campos do create, todos opcionais).
 ```json
-{
-  "amount": 200.00,
-  "description": "Pagamento atualizado"
-}
+{ "amount": 200.00, "description": "Pagamento atualizado" }
 ```
 
 #### `DELETE /api/transactions/:id`
 Response `200`:
 ```json
-{
-  "success": true,
-  "data": { "message": "Transacción eliminada exitosamente." }
-}
+{ "success": true, "data": { "message": "Transacción eliminada exitosamente." } }
 ```
 
 ---
@@ -355,10 +346,6 @@ Query params opcionais:
 
 Sem params, considera todo o histórico. O período aplica-se a todos os cálculos.
 
-Exemplo:
-```
-GET /api/dashboard?startDate=2026-06-01&endDate=2026-06-30
-```
 Response `200`:
 ```json
 {
@@ -383,6 +370,28 @@ Campos:
 
 ---
 
+## Testes
+
+Os testes focam na **camada de casos de uso**, onde vive a regra de negócio. Graças aos ports (`abstract class`), as dependências são mockadas facilmente, sem necessidade de banco de dados — testes rápidos, determinísticos e relevantes (não busca por cobertura de 100%, e sim por significância, conforme o enunciado).
+
+Cobrem os critérios de avaliação de peso **Alto**:
+
+| Teste | O que valida |
+|---|---|
+| `RegisterUseCase` | Rejeita e-mail duplicado; gera hash da senha |
+| `LoginUseCase` | Retorna token com credenciais válidas; rejeita senha incorreta |
+| `CreateCategoryUseCase` | Impede nome de categoria duplicado por usuário |
+| `CreateTransactionUseCase` | Garante que a categoria pertence ao usuário (autorização) |
+| `GetDashboardUseCase` | Calcula corretamente o saldo e o top de categorias |
+
+Executar:
+```bash
+npm run test
+npm run test:cov   # com cobertura
+```
+
+---
+
 ## Variáveis de ambiente
 
 Ver `.env.example`. Validadas no boot via Joi.
@@ -395,6 +404,17 @@ Ver `.env.example`. Validadas no boot via Joi.
 | `DB_NAME` | nome do banco |
 | `JWT_SECRET` | segredo para assinar os tokens |
 | `JWT_EXPIRES_IN` | expiração do token (ex. `1d`) |
+| `CORS_ORIGIN` | origin permitido para CORS (ex. URL do frontend) |
+
+---
+
+## Execução
+
+Este backend é destinado a **deploy em produção** (Docker, publicado em VPS via Dokploy). A imagem é construída a partir do `Dockerfile` (multi-stage: build com Node + imagem final liviana com `dist` compilado).
+
+Para executar o **projeto completo localmente** (backend + frontend + PostgreSQL com um único comando), use o repositório wrapper:
+
+👉 https://github.com/kervisvasquez1993/wrapper-gestao-financiera
 
 ---
 
@@ -408,11 +428,3 @@ Formato: `tipo(escopo): descrição`
 feat(transactions): add crud with pagination and filters
 fix(categories): scope queries to authenticated user
 ```
-
----
-
-## Próximos passos
-
-- [ ] Containerização com Docker / Docker Compose (incl. instruções de execução local).
-- [ ] Testes automatizados.
-- [ ] Frontend em React + TypeScript.
