@@ -10,6 +10,7 @@ interface EnvVars {
   DB_NAME: string;
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
+  CORS_ORIGIN: string;
 }
 
 const envsSchema = joi
@@ -22,6 +23,7 @@ const envsSchema = joi
     DB_NAME: joi.string().required(),
     JWT_SECRET: joi.string().required(),
     JWT_EXPIRES_IN: joi.string().default('1d'),
+    CORS_ORIGIN: joi.string().default('http://localhost:5173'),
   })
   .unknown(true);
 
@@ -38,6 +40,7 @@ const envVars: EnvVars = value;
 
 export const envs = {
   port: envVars.PORT,
+  corsOrigin: envVars.CORS_ORIGIN,
   jwt: {
     secret: envVars.JWT_SECRET,
     expiresIn: envVars.JWT_EXPIRES_IN,
