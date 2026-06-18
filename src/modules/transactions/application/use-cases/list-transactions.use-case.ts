@@ -19,6 +19,7 @@ export class ListTransactionsUseCase {
       categoryId: filters.categoryId,
       startDate: filters.startDate,
       endDate: filters.endDate,
+      search: filters.search,
       page,
       limit,
     });

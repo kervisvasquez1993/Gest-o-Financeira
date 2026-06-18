@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { TransactionType } from '../../domain/enums/transaction-type.enum';
 
 export class FilterTransactionsDto {
@@ -31,4 +31,7 @@ export class FilterTransactionsDto {
   @Min(1)
   @Max(100)
   limit: number = 10;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

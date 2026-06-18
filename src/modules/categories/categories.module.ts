@@ -9,6 +9,7 @@ import { Category } from './domain/entities/category.entity';
 import { CategoryRepository } from './domain/ports/category-repository.port';
 import { TypeOrmCategoryRepository } from './infrastructure/repositories/typeorm-category.repository';
 import { CategoryController } from './presentation/category.controller';
+import { GetCategoriesSummaryUseCase } from './application/use-cases/get-categories-summary.use-case';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Category])],
@@ -20,6 +21,7 @@ import { CategoryController } from './presentation/category.controller';
     DeleteCategoryUseCase,
     GetAllCategoriesUseCase,
     GetCategoryByIdUseCase,
+     GetCategoriesSummaryUseCase,
   ],
   exports: [CategoryRepository],
 })

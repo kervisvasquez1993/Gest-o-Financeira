@@ -19,7 +19,7 @@ export class TypeOrmTransactionRepository extends TransactionRepository {
   }
 
    findManyByUser(filters: TransactionFilters): Promise<[Transaction[], number]> {
-    const { userId, type, categoryId, startDate, endDate, page, limit } = filters;
+    const { userId, type, categoryId, startDate, endDate, search, page, limit } = filters;
 
     const qb = this.repository
       .createQueryBuilder('t')
@@ -30,6 +30,7 @@ export class TypeOrmTransactionRepository extends TransactionRepository {
     if (categoryId) qb.andWhere('t.categoryId = :categoryId', { categoryId });
     if (startDate) qb.andWhere('t.date >= :startDate', { startDate });
     if (endDate) qb.andWhere('t.date <= :endDate', { endDate });
+    if (search) qb.andWhere('t.description ILIKE :search', { search: `%${search}%` });
 
     qb.orderBy('t.date', 'DESC')
       .addOrderBy('t.createdAt', 'DESC')

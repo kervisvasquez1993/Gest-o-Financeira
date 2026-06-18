@@ -24,6 +24,7 @@ export interface TransactionFilters {
   categoryId?: string;
   startDate?: string;
   endDate?: string;
+  search?: string;   
   page: number;
   limit: number;
 }

@@ -1,3 +1,4 @@
+// src/modules/categories/domain/ports/category-repository.port.ts
 import { Category } from '../entities/category.entity';
 
 export interface CreateCategoryData {
@@ -11,11 +12,32 @@ export interface UpdateCategoryData {
   description?: string | null;
 }
 
+export interface CategoryWithStats {
+  id: string;
+  name: string;
+  description: string | null;
+  transactionsCount: number;
+  totalEntradas: number;
+  totalSaidas: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export abstract class CategoryRepository {
   abstract findAllByUser(userId: string): Promise<Category[]>;
-  abstract findByIdAndUser(id: string, userId: string): Promise<Category | null>;
-    abstract findByNameAndUser(name: string, userId: string): Promise<Category | null>;
+  abstract findAllByUserWithStats(userId: string): Promise<CategoryWithStats[]>;
+  abstract findByIdAndUser(
+    id: string,
+    userId: string,
+  ): Promise<Category | null>;
+  abstract findByNameAndUser(
+    name: string,
+    userId: string,
+  ): Promise<Category | null>;
   abstract create(data: CreateCategoryData): Promise<Category>;
-  abstract update(category: Category, data: UpdateCategoryData): Promise<Category>;
+  abstract update(
+    category: Category,
+    data: UpdateCategoryData,
+  ): Promise<Category>;
   abstract delete(category: Category): Promise<void>;
 }

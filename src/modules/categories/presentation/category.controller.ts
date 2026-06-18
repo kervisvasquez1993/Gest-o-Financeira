@@ -21,6 +21,7 @@ import { DeleteCategoryUseCase } from '../application/use-cases/delete-category.
 import { GetAllCategoriesUseCase } from '../application/use-cases/get-all-categories.use-case';
 import { GetCategoryByIdUseCase } from '../application/use-cases/get-category-by-id.use-case';
 import { UpdateCategoryUseCase } from '../application/use-cases/update-category.use-case';
+import { GetCategoriesSummaryUseCase } from '../application/use-cases/get-categories-summary.use-case';
 
 @Controller('categories')
 @UseGuards(JwtAuthGuard)
@@ -31,6 +32,7 @@ export class CategoryController {
     private readonly deleteCategory: DeleteCategoryUseCase,
     private readonly getAllCategories: GetAllCategoriesUseCase,
     private readonly getCategoryById: GetCategoryByIdUseCase,
+    private readonly getCategoriesSummary: GetCategoriesSummaryUseCase,
   ) {}
 
   @Post()
@@ -42,9 +44,15 @@ export class CategoryController {
   findAll(@CurrentUser() user: AuthUser) {
     return this.getAllCategories.execute(user.id);
   }
-
+  @Get('summary')
+  summary(@CurrentUser() user: AuthUser) {
+    return this.getCategoriesSummary.execute(user.id);
+  }
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.getCategoryById.execute(id, user.id);
   }
 
@@ -58,7 +66,10 @@ export class CategoryController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.deleteCategory.execute(id, user.id);
   }
 }
