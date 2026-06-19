@@ -1,4 +1,3 @@
-// src/modules/categories/application/use-cases/create-category.use-case.ts
 import { Injectable } from '@nestjs/common';
 import { Category } from '../../domain/entities/category.entity';
 import { CategoryNameAlreadyExistsError } from '../../domain/errors/category-name-already-exists.error';
