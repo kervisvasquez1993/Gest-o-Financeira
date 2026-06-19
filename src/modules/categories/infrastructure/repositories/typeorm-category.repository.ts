@@ -47,6 +47,13 @@ export class TypeOrmCategoryRepository extends CategoryRepository {
   async delete(category: Category): Promise<void> {
     await this.repository.remove(category);
   }
+  async countTransactions(categoryId: string): Promise<number> {
+    return this.repository
+      .createQueryBuilder('c')
+      .innerJoin('transactions', 't', 't.category_id = c.id')
+      .where('c.id = :categoryId', { categoryId })
+      .getCount();
+  }
   async findAllByUserWithStats(userId: string): Promise<CategoryWithStats[]> {
     const rows = await this.repository
       .createQueryBuilder('c')
