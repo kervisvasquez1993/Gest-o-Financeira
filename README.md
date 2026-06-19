@@ -374,23 +374,24 @@ Campos:
 
 Os testes focam na **camada de casos de uso**, onde vive a regra de negócio. Graças aos ports (`abstract class`), as dependências são mockadas facilmente, sem necessidade de banco de dados — testes rápidos, determinísticos e relevantes (não busca por cobertura de 100%, e sim por significância, conforme o enunciado).
 
-Cobrem os critérios de avaliação de peso **Alto**:
+Atualmente são **11 testes em 5 suites**, cobrindo os critérios de avaliação de peso **Alto**:
 
-| Teste | O que valida |
+| Suite | Casos cobertos |
 |---|---|
-| `RegisterUseCase` | Rejeita e-mail duplicado; gera hash da senha |
-| `LoginUseCase` | Retorna token com credenciais válidas; rejeita senha incorreta |
-| `CreateCategoryUseCase` | Impede nome de categoria duplicado por usuário |
-| `CreateTransactionUseCase` | Garante que a categoria pertence ao usuário (autorização) |
-| `GetDashboardUseCase` | Calcula corretamente o saldo e o top de categorias |
+| `RegisterUseCase` | Rejeita e-mail duplicado; gera hash da senha e cria o usuário |
+| `LoginUseCase` | Retorna token com credenciais válidas; rejeita usuário inexistente e senha incorreta |
+| `CreateCategoryUseCase` | Impede nome de categoria duplicado por usuário; cria quando é único |
+| `CreateTransactionUseCase` | Garante que a categoria pertence ao usuário (autorização); cria quando válida |
+| `GetDashboardUseCase` | Calcula corretamente o saldo e o top de categorias; trata período sem datas |
+
+Configuração: os testes usam Jest (já incluído no NestJS) com `ts-jest`. Um `moduleNameMapper` resolve imports absolutos (`src/...`) durante a execução dos testes.
 
 Executar:
 ```bash
-npm run test
-npm run test:cov   # com cobertura
+npm run test         # roda todos os testes
+npm run test:cov     # com relatório de cobertura
+npm run test:watch   # modo watch
 ```
-
----
 
 ## Variáveis de ambiente
 
